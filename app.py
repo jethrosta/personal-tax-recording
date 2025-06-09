@@ -61,32 +61,48 @@ def get_next_available_row(sheet_id, credentials):
     return len(values) + 1
 
 def send_to_sheets(sheet_id, store_name, date, tax, total, items, image_url):
-    SCOPES = [
-    "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/spreadsheets"]
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+    
+    # Create credentials from the service account info
+    creds_dict = {
+        "type": st.secrets["gcp_service_account"]["type"],
+        "project_id": st.secrets["gcp_service_account"]["project_id"],
+        "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
+        "private_key": st.secrets["gcp_service_account"]["private_key"],
+        "client_email": st.secrets["gcp_service_account"]["client_email"],
+        "client_id": st.secrets["gcp_service_account"]["client_id"],
+        "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
+        "token_uri": st.secrets["gcp_service_account"]["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["gcp_service_account"]["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
+    }
+    
     credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"], scopes=SCOPES)
-    sheets_service = build('sheets', 'v4', credentials=credentials)
-    next_row = get_next_available_row(sheet_id, credentials)
-
-    item_rows = []
-    for i, (name, price) in enumerate(items):
-        if i == 0:
-            item_rows.append([
-                store_name,
-                date,
-                name,
-                f"${price}",
-                f"${tax}",
-                f"${total}",
-                image_url
-            ])
-        else:
-            item_rows.append([
-                '', '', name, f"${price}", '', '', ''
-            ])
+        creds_dict,
+        scopes=SCOPES
+    )
 
     try:
+        sheets_service = build('sheets', 'v4', credentials=credentials)
+        next_row = get_next_available_row(sheet_id, credentials)
+
+        item_rows = []
+        for i, (name, price) in enumerate(items):
+            if i == 0:
+                item_rows.append([
+                    store_name,
+                    date,
+                    name,
+                    f"${price}",
+                    f"${tax}",
+                    f"${total}",
+                    image_url
+                ])
+            else:
+                item_rows.append([
+                    '', '', name, f"${price}", '', '', ''
+                ])
+
         sheets_service.spreadsheets().values().update(
             spreadsheetId=sheet_id,
             range=f'Sheet1!A{next_row}',
@@ -96,6 +112,9 @@ def send_to_sheets(sheet_id, store_name, date, tax, total, items, image_url):
         return True
     except HttpError as err:
         st.error(f"Error sending to Google Sheets: {err}")
+        return False
+    except Exception as e:
+        st.error(f"Unexpected error: {str(e)}")
         return False
 
 
@@ -194,33 +213,53 @@ def parse_wells_fargo(full_text):
 
     return store_name, transaction_date, "N/A", total, []
 
-def upload_image_to_drive( image_bytes, filename="receipt.jpg", folder_id=None):
-    SCOPES = [
-    "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/spreadsheets"]
+def upload_image_to_drive(image_bytes, filename="receipt.jpg", folder_id=None):
+    SCOPES = ["https://www.googleapis.com/auth/drive"]
+    
+    # Create credentials from the service account info
+    creds_dict = {
+        "type": st.secrets["gcp_service_account"]["type"],
+        "project_id": st.secrets["gcp_service_account"]["project_id"],
+        "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
+        "private_key": st.secrets["gcp_service_account"]["private_key"],
+        "client_email": st.secrets["gcp_service_account"]["client_email"],
+        "client_id": st.secrets["gcp_service_account"]["client_id"],
+        "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
+        "token_uri": st.secrets["gcp_service_account"]["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["gcp_service_account"]["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
+    }
+    
     credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"], scopes=SCOPES)
-    drive_service = build('drive', 'v3', credentials=credentials)
+        creds_dict,
+        scopes=SCOPES
+    )
 
-    file_metadata = {'name': filename}
-    if folder_id:
-        file_metadata['parents'] = [folder_id]
+    try:
+        drive_service = build('drive', 'v3', credentials=credentials)
 
-    media = MediaIoBaseUpload(io.BytesIO(image_bytes), mimetype='image/jpeg')
+        file_metadata = {'name': filename}
+        if folder_id:
+            file_metadata['parents'] = [folder_id]
 
-    file = drive_service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields='id'
-    ).execute()
+        media = MediaIoBaseUpload(io.BytesIO(image_bytes), mimetype='image/jpeg')
 
-    # Set permission to public
-    drive_service.permissions().create(
-        fileId=file['id'],
-        body={'type': 'anyone', 'role': 'reader'}
-    ).execute()
+        file = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id'
+        ).execute()
 
-    return f"https://drive.google.com/uc?id={file['id']}"
+        # Set permission to public
+        drive_service.permissions().create(
+            fileId=file['id'],
+            body={'type': 'anyone', 'role': 'reader'}
+        ).execute()
+
+        return f"https://drive.google.com/uc?id={file['id']}"
+    except Exception as e:
+        st.error(f"Error uploading to Google Drive: {str(e)}")
+        return None
 
 # === Streamlit UI ===
 st.title("🧾 Christo Personal Tax Reduction")
