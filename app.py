@@ -9,12 +9,17 @@ import io
 from PIL import Image, ExifTags
 
 # --- Konfigurasi AWS dan Google Sheets ---
-
+aws_access_key = st.secrets["aws"]["aws_access_key_id"]
+aws_secret_key = st.secrets["aws"]["aws_secret_access_key"]
+region = st.secrets["aws"]["region_name"]
+sheet_id = '1Bagw_IiVFHX942ACSTRs9ET3IdP1iIjCnSo3IOUJ73U'
+service_account_file = 'christos-bill-4d42ec315bda.json'
+folder_id = '1bsWOEg0Pp_yzekRYSnqXqbtriiChwZqi'
 
 textract_client = boto3.client(
     'textract',
-    aws_access_key_id=access_key,
-    aws_secret_access_key=secret_key,
+    aws_access_key_id=aws_access_key,
+    aws_secret_access_key=aws_secret_key,
     region_name=region
 )
 
