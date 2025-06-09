@@ -177,8 +177,8 @@ def parse_kum_and_go(full_text):
     return store_name, transaction_date, tax, total, filtered_items
 
 def parse_generic(full_text):
-    store_name_match = re.match(r'^(.+?)\s+#\d+', full_text)
-    store_name = store_name_match.group(1).strip() if store_name_match else "Not found"
+    first_line = full_text.strip().split('\n')[0]  # Get the first line
+    store_name = ' '.join(first_line.strip().split()) 
 
     date_match = re.search(r'(\d{2}/\d{2}/\d{4})\s+(\d{1,2}:\d{2}:\d{2}\s+[APM]{2})', full_text)
     transaction_date = f"{date_match.group(1)} {date_match.group(2)}" if date_match else "Not found"
