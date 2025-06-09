@@ -14,6 +14,7 @@ aws_secret_key = st.secrets["aws"]["aws_secret_access_key"]
 region = st.secrets["aws"]["region"]
 sheet_id = '1Bagw_IiVFHX942ACSTRs9ET3IdP1iIjCnSo3IOUJ73U'
 folder_id = '1bsWOEg0Pp_yzekRYSnqXqbtriiChwZqi'
+spreadsheet_url = 'https://docs.google.com/spreadsheets/d/1Bagw_IiVFHX942ACSTRs9ET3IdP1iIjCnSo3IOUJ73U/edit?usp=sharing'
 
 textract_client = boto3.client(
     'textract',
@@ -290,5 +291,6 @@ if uploaded_file:
             if success:
                 st.success("✅ Data and image successfully submitted to Google Sheets!")
                 st.markdown(f"[📷 View Image in Drive]({image_url})")
+                st.markdown(f"[🔗 View Google Sheets]({spreadsheet_url})")
         except Exception as e:
             st.error(f"Error during submission: {e}")
