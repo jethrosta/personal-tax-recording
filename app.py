@@ -689,7 +689,7 @@ if uploaded_file:
         parsed_date = datetime.date.today()
 
     date_obj = st.date_input("Transaction Date", parsed_date)
-    date = date_obj.strftime("%dd-%mm-%YYYY")  # Or any preferred format
+    date = date_obj.strftime("%d-%m-%Y")  # Or any preferred format
     tax = st.text_input("Tax", str(tax) if tax is not None else "")
     total = st.text_input("Total", str(total) if total is not None else "")
 
