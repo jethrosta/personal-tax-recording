@@ -213,6 +213,401 @@ def parse_wells_fargo(full_text):
 
     return store_name, transaction_date, "N/A", total, []
 
+def parse_get_n_go(full_text):
+    store_name_match = re.match(r'^(.+?)\s+#\d+', full_text)
+    store_name = store_name_match.group(1).strip() if store_name_match else "Not found"
+
+    date_match = re.search(r'(\d{2}/\d{2}/\d{4})\s+(\d{1,2}:\d{2}:\d{2}\s+[APM]{2})', full_text)
+    transaction_date = f"{date_match.group(1)} {date_match.group(2)}" if date_match else "Not found"
+
+    total_match = re.search(r'Total\s*=?\s*\$?([\d,]+\.\d{2})', full_text)
+    total = total_match.group(1) if total_match else "Not found"
+
+    tax_match = re.search(r'Tax\s*=?\s*\$?([\d,]+\.\d{2})', full_text, re.IGNORECASE)
+    tax = tax_match.group(1) if tax_match else "Not found"
+
+    item_pattern = re.compile(r'([A-Z\s]{3,}?)\s+\$?([\d,]+\.\d{2})')
+    items = item_pattern.findall(full_text)
+
+    filtered_items = []
+    exclude_keywords = {'TOTAL', 'TAX', 'CHANGE', 'DEBIT', 'SALE', 'SUBTOTAL'}
+    for name, price in items:
+        if any(keyword in name.strip().upper() for keyword in exclude_keywords):
+            continue
+        filtered_items.append((name.strip(), price))
+
+    return store_name, transaction_date, tax, total, filtered_items
+
+def parse_pizza_ranch(full_text):
+    lines = full_text.splitlines()
+    store_name = next((line.strip() for line in lines if re.match(r'^[A-Za-z\s#]+$', line.strip()) and len(line.strip()) > 3), 'Not found')
+
+    date_time_match = re.search(r'Date:\s*(\d{1,2}/\d{1,2}/\d{2}),?\s*(\d{1,2}:\d{2}\s*[AP]M)', full_text, re.IGNORECASE)
+    transaction_date = f"{date_time_match.group(1)} {date_time_match.group(2)}" if date_time_match else "Not found"
+
+    total_match = re.search(r'Total:\s*\$\s*([\d,]+\.\d{2})(?![^\n]*Paid)', full_text)
+    total = total_match.group(1) if total_match else "Not found"
+
+    tax_match = re.search(r'Total Tax:\s*\$\s*([\d,]+\.\d{2})', full_text, re.IGNORECASE)
+    tax = tax_match.group(1) if tax_match else "Not found"
+
+    filtered_items = []
+    exclude_keywords = {
+        'TOTAL', 'TAX', 'CHANGE', 'DEBIT', 'SALE', 'SUBTOTAL', 
+        'ORDER', 'DINEIN', 'SERVER', 'DATE', 'TERMINAL', 
+        'TRANSACTION', 'REFERENCE', 'ENTRY', 'CHIP', 'ISSUER',
+        'APPROVAL', 'RESPONSE', 'VERIFIED', 'COUNT', 'PAID',
+        'VISIT', 'MERCHANT', 'CALL', 'REWARDS', 'COPY', 'BILL',
+        'XXXX', 'AUTH', 'MODE', 'ARC', 'ARQC', 'US DEBIT'
+    }
+
+    for i, line in enumerate(lines[:-1]):
+        line = line.strip()
+        next_line = lines[i+1].strip() if i+1 < len(lines) else ""
+        
+        if any(keyword in line.upper() for keyword in exclude_keywords):
+            continue
+        
+        price_match = re.match(r'^\$\d+\.\d{2}$', next_line)
+        if price_match and line and not any(char.isdigit() for char in line):
+            price = price_match.group(0).replace('$', '')
+            filtered_items.append((line, price))
+
+    if not filtered_items:
+        buffet_match = re.search(r'^([A-Za-z\s]+Buffet)\s*\n\s*\$\s*([\d,]+\.\d{2})', full_text, re.MULTILINE)
+        if buffet_match:
+            filtered_items.append((buffet_match.group(1).strip(), buffet_match.group(2)))
+
+    return store_name, transaction_date, tax, total, filtered_items
+
+def parse_kpot(full_text):
+    lines = full_text.splitlines()
+    store_name = next((line.strip() for line in lines if re.match(r'^[A-Za-z\s&]+$', line.strip()) and len(line.strip()) > 3), 'Not found')
+
+    date_time_match = re.search(r'Ordered:\s*(\d{1,2}/\d{1,2}/\d{2})\s*(\d{1,2}:\d{2}\s*[AP]M)', full_text, re.IGNORECASE)
+    transaction_date = f"{date_time_match.group(1)} {date_time_match.group(2)}" if date_time_match else "Not found"
+
+    total_match = re.search(r'Total\s*\n\s*\$\s*([\d,]+\.\d{2})', full_text)
+    total = total_match.group(1) if total_match else "Not found"
+
+    tax_match = re.search(r'Tax\s*\n\s*\$\s*([\d,]+\.\d{2})', full_text, re.IGNORECASE)
+    tax = tax_match.group(1) if tax_match else "Not found"
+
+    filtered_items = []
+    exclude_keywords = {
+        'TOTAL', 'TAX', 'TIP', 'DISCOUNT', 'SUBTOTAL', 'PRE-DISCOUNT',
+        'INPUT', 'TYPE', 'VISA', 'DEBIT', 'XXXX', 'TIME', 'TRANSACTION',
+        'AUTHORIZATION', 'APPROVED', 'APPROVAL', 'CODE', 'PAYMENT',
+        'APPLICATION', 'LABEL', 'TERMINAL', 'CARD', 'READER', 'GRACE',
+        'SUGGESTED', 'ADDITIONAL', 'PERCENTAGES', 'POWERED', 'CHECK',
+        'TABS', 'TABLE', 'GUEST', 'COUNT', 'SERVER', 'ORDERED'
+    }
+
+    for i, line in enumerate(lines[:-1]):
+        line = line.strip()
+        next_line = lines[i+1].strip() if i+1 < len(lines) else ""
+        
+        if any(keyword in line.upper() for keyword in exclude_keywords):
+            continue
+        
+        item_match = re.match(r'^\d+\s+([A-Za-z\s]+)$', line)
+        price_match = re.match(r'^\$\d+\.\d{2}$', next_line)
+        
+        if item_match and price_match:
+            item_name = item_match.group(1).strip()
+            price = price_match.group(0).replace('$', '')
+            filtered_items.append((item_name, price))
+        elif re.match(r'^[A-Za-z\s]+$', line) and price_match and len(line) > 3:
+            price = price_match.group(0).replace('$', '')
+            filtered_items.append((line.strip(), price))
+
+    return store_name, transaction_date, tax, total, filtered_items
+
+def parse_hy_vee(full_text):
+    lines = full_text.splitlines()
+    store_name = 'Not found'
+    for line in lines:
+        if re.match(r'^[A-Za-z\s]+$', line.strip()) and len(line.strip()) > 3:
+            if "RECEIPT" not in line and "REPRINT" not in line:
+                store_name = line.strip()
+                break
+
+    date_time_match = re.search(r'(\d{2}/\d{2}/\d{2})\s+(\d{1,2}:\d{2}\s+[AP]M)', full_text)
+    transaction_date = f"{date_time_match.group(1)} {date_time_match.group(2)}" if date_time_match else "Not found"
+
+    total_match = re.search(r'TOTAL\s+([\d,]+\.\d{2})', full_text)
+    total = total_match.group(1) if total_match else "Not found"
+
+    tax_matches = re.findall(r'@\s+[\d.]+%\s+=\s+([\d,]+\.\d{2})', full_text)
+    tax = str(sum(float(t.replace(',', '')) for t in tax_matches)) if tax_matches else "Not found"
+
+    filtered_items = []
+    exclude_keywords = {
+        'TOTAL', 'TAX', 'SUBTOTAL', 'DEBIT', 'PURCHASE', 'VISA', 'CHIP',
+        'REF#', 'TRANSACTION', 'APPROVED', 'US DEBIT', 'AAC', 'ONLINE',
+        'VERIFIED', 'MODE', 'AID', 'TVR', 'TAO', 'ISL', 'AN', 'CASHIER',
+        'DATE', 'TIME', 'STORE', 'POS', 'EMD', 'TRX', 'TELL', 'VISIT',
+        'SURVEY', 'RULES', 'PURCHASE', 'NECESSARY', 'SWEEPSTAKES'
+    }
+
+    current_item = None
+    for line in lines:
+        line = line.strip()
+        
+        if any(keyword in line.upper() for keyword in exclude_keywords):
+            continue
+        
+        if re.match(r'^\d{5,}$', line):
+            continue
+        
+        if re.match(r'^[A-Z][A-Z0-9\s&]+$', line) and not re.match(r'^[A-Z]+\s+[A-Z]+\s*$', line):
+            current_item = line
+        elif current_item and re.match(r'^[\d,]+\.\d{2}\s+[xtf]$', line.lower()):
+            price = re.sub(r'[xtf]\s*$', '', line, flags=re.IGNORECASE).strip()
+            filtered_items.append((current_item, price))
+            current_item = None
+        elif current_item and re.match(r'^[\d,]+\.\d{2}$', line):
+            filtered_items.append((current_item, line))
+            current_item = None
+
+    return store_name, transaction_date, tax, total, filtered_items
+
+def parse_hyvee_fast_fresh(full_text):
+    store_name_match = re.match(r'^([A-Za-z&\-\s]+)', full_text)
+    store_name = store_name_match.group(1).strip() if store_name_match else "Not found"
+
+    date_match = re.search(r'Date:\s*(\d{2}/\d{2}/\d{2})', full_text)
+    time_match = re.search(r'Time:\s*(\d{2}:\d{2}:\d{2})', full_text)
+    transaction_date = f"{date_match.group(1)} {time_match.group(1)}" if date_match and time_match else "Not found"
+
+    total_match = re.search(r'TOTAL SALE\s*\$\s*([\d,]+\.\d{2})', full_text)
+    total = total_match.group(1) if total_match else "Not found"
+
+    tax = "0.00"
+
+    filtered_items = []
+    exclude_keywords = {
+        'INVOICE', 'PUMP', 'GALLONS', 'PRICE', 'DEBIT', 
+        'TOTAL', 'MERCH', 'TERM', 'PURCHASE', 'CHIP',
+        'SEG', 'REF', 'APPR', 'CODE', 'TRANSACTION',
+        'APPROVED', 'ARQC', 'ONLINE', 'VERIFIED', 'MODE',
+        'AID', 'TVR', 'IAD', 'TSI', 'ARC', 'THANK YOU'
+    }
+
+    lines = full_text.splitlines()
+    for i, line in enumerate(lines):
+        line = line.strip()
+        
+        if any(keyword in line.upper() for keyword in exclude_keywords):
+            continue
+        
+        if re.match(r'^[A-Z]+$', line) and i+1 < len(lines):
+            next_line = lines[i+1].strip()
+            price_match = re.match(r'^\$\s*([\d,]+\.\d{2})$', next_line)
+            if price_match:
+                filtered_items.append((f"{line} GAS", price_match.group(1)))
+                break
+
+    if not filtered_items:
+        product_match = re.search(r'Product\s+Amount\s+([A-Z]+)\s+\$\s*([\d,]+\.\d{2})', full_text)
+        if product_match:
+            filtered_items.append((f"{product_match.group(1)} GAS", product_match.group(2)))
+
+    pump_match = re.search(r'Pump\s+Gallons\s+Price\s+(\d+)\s+([\d,]+\.\d{3})\s+\$\s*([\d,]+\.\d{2})', full_text)
+    if pump_match:
+        filtered_items.append((f"PUMP {pump_match.group(1)}: {pump_match.group(2)} gallons @ ${pump_match.group(3)}/gal", ""))
+
+    return store_name, transaction_date, tax, total, filtered_items
+
+def parse_holiday_stationstore(full_text):
+    lines = full_text.splitlines()
+    store_name = next((line.strip() for line in lines if re.match(r'^[A-Za-z\s]+$', line.strip()) and len(line.strip()) > 3 and "Order Number" not in line), 'Not found')
+
+    date_time_match = re.match(r'(\d{1,2}/\d{1,2}/\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M)', full_text)
+    transaction_date = date_time_match.group(1) if date_time_match else "Not found"
+
+    total_match = re.search(r'(?<!Sub.\s)Total:\s*\$\s*([\d,]+\.\d{2})', full_text)
+    total = total_match.group(1) if total_match else "Not found"
+
+    tax_match = re.search(r'Tax:\s*\$\s*([\d,]+\.\d{2})', full_text)
+    tax = tax_match.group(1) if tax_match else "Not found"
+
+    filtered_items = []
+    exclude_keywords = {
+        'ORDER', 'NUMBER', 'REGISTER', 'SUB', 'TOTAL', 'TAX', 
+        'DISCOUNT', 'MASTERCARD', 'CHANGE', 'SALE', 'CARD', 'NUM',
+        'CHIP', 'READ', 'TERMINAL', 'APPROVAL', 'SEQUENCE', 'USD',
+        'DEBIT', 'MODE', 'AID', 'TVR', 'IAD', 'TSI', 'ARC', 'ARCC',
+        'THANK', 'COME', 'AGAIN', 'HOLIDAY', 'STATIONSTORE'
+    }
+
+    for line in full_text.splitlines():
+        line = line.strip()
+        
+        if any(keyword in line.upper() for keyword in exclude_keywords):
+            continue
+        
+        if not line or re.match(r'^[\d\s]+$', line):
+            continue
+        
+        item_match = re.match(r'^(T\s+)?(.+?)\s+(-?\$?\d+\.\d{2})(\s*[A-Z]*)?$', line)
+        if item_match:
+            item_name = item_match.group(2).strip()
+            price = item_match.group(3).replace('$', '')
+            filtered_items.append((item_name, price))
+        elif re.match(r'^([\d.]+\s+[A-Z]+\s+.+?\s+-?\$?\d+\.\d{2})', line):
+            parts = line.rsplit(' ', 1)
+            filtered_items.append((parts[0].strip(), parts[1].replace('$', '')))
+
+    return store_name, transaction_date, tax, total, filtered_items
+
+def parse_corners_pantry(full_text):
+    lines = [line.strip() for line in full_text.splitlines() if line.strip()]
+    store_name = next((line for line in lines if not re.match(r'^\d', line) and 
+                      not any(x in line.lower() for x in ['street', 'ave', 'st', 'register']) and
+                      len(line) > 3), 'Not found')
+
+    date_time_match = re.search(r'(\d{2}/\d{2}/\d{2}\s+\d{1,2}:\d{2}:\d{2}\s+[AP]M)', full_text)
+    transaction_date = date_time_match.group(1) if date_time_match else "Not found"
+
+    total_match = re.search(r'Total\s*=\s*\$\s*([\d,]+\.\d{2})', full_text)
+    total = total_match.group(1) if total_match else "Not found"
+
+    tax_match = re.search(r'Tax\s*=\s*\$\s*([\d,]+\.\d{2})', full_text)
+    tax = tax_match.group(1) if tax_match else "Not found"
+
+    filtered_items = []
+    exclude_keywords = {
+        'STREET', 'REGISTER', 'TRANS', 'DO', 'ID', 'CASHIER', 'SUBTOTAL',
+        'TAX', 'TOTAL', 'CHANGE', 'DUE', 'DEBIT', 'INVOICE', 'AUTH',
+        'REF', 'US', 'DEBIT', 'AID', 'ARDC', 'PTN', 'VERIFIED',
+        'SIGNATURE', 'REQUIRED', 'MAESTRO', 'DOA', 'TERMINAL', 'SEQ',
+        'NUM', 'SALE', 'ENTRY', 'CHIP', 'BATCH', 'WORKSTATION', 'SAVE',
+        'FUEL', 'OFFER', 'VISIT', 'COMPLETE', 'SURVEY', 'TELL', 'VISIT',
+        'SERVICE', 'GIFT', 'CARD', 'CARDHOLDER', 'COPY', '---'
+    }
+
+    for i, line in enumerate(full_text.splitlines()):
+        line = line.strip()
+        
+        if any(keyword in line.upper() for keyword in exclude_keywords):
+            continue
+        
+        if not line or re.match(r'^[\d\s-]+$', line):
+            continue
+        
+        if i+1 < len(full_text.splitlines()):
+            next_line = full_text.splitlines()[i+1].strip()
+            price_match = re.match(r'^\$\d+\.\d{2}', next_line)
+            if price_match and not any(keyword in line.upper() for keyword in exclude_keywords):
+                price = price_match.group(0).replace('$', '')
+                filtered_items.append((line, price))
+                continue
+        
+        item_match = re.match(r'^([A-Z][A-Z\s]+)\s+\$(\d+\.\d{2})', line)
+        if item_match:
+            item_name = item_match.group(1).strip()
+            price = item_match.group(2)
+            filtered_items.append((item_name, price))
+            continue
+
+    return store_name, transaction_date, tax, total, filtered_items
+
+def parse_caseys(full_text):
+    store_name = full_text.split('\n')[0].strip()
+
+    date_match = re.search(r'(\d{1,2}/\d{1,2}/\d{2})', full_text)
+    time_match = re.search(r'(\d{2}:\d{2}:\d{2})', full_text)
+    transaction_date = f"{date_match.group(1)} {time_match.group(1)}" if date_match and time_match else "Not found"
+
+    total_match = re.search(r'(?<!Sub)Total\s*\n\s*([\d,]+\.\d{2})', full_text)
+    total = total_match.group(1) if total_match else "Not found"
+
+    state_tax_match = re.search(r'State Tax\s*\n\s*([\d,]+\.\d{2})', full_text)
+    local_tax_match = re.search(r'Local/City Tax\s*\n\s*([\d,]+\.\d{2})', full_text)
+    tax = str(float(state_tax_match.group(1)) + float(local_tax_match.group(1))) if state_tax_match and local_tax_match else "Not found"
+
+    filtered_items = []
+    exclude_keywords = {
+        'REGISTER', 'RECEIPT', 'TYPE', 'SALE', 'SUBTOTAL', 'TAX',
+        'TOTAL', 'RECEIVED', 'DEBIT', 'CHIP', 'READ', 'TRAN', 'RESPONSE',
+        'APPROVED', 'CARD', 'NUM', 'MERCHANT', 'TERMINAL', 'DEVICE',
+        'APPROVAL', 'DATE/TIME', 'BATCH', 'SEQ', 'REFERENCE', 'USD',
+        'AID', 'TVR', 'IAD', 'TSI', 'ARQC', 'ISSUER', 'VERIFIED', 'VISIT'
+    }
+
+    lines = full_text.split('\n')
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        if any(keyword in line.upper() for keyword in exclude_keywords):
+            i += 1
+            continue
+        
+        item_match = re.match(r'^(\d+)\s+([A-Za-z].*)$', line)
+        if item_match:
+            quantity = item_match.group(1)
+            item_name = item_match.group(2)
+            
+            if i+1 < len(lines):
+                price_line = lines[i+1].strip()
+                price_match = re.match(r'^([\d,]+\.\d{2})$', price_line)
+                if price_match:
+                    filtered_items.append((f"{quantity} {item_name}", price_match.group(1)))
+                    i += 2
+                    continue
+        i += 1
+
+    return store_name, transaction_date, tax, total, filtered_items
+
+def parse_caseys_store(full_text):
+    store_name_match = re.match(r'^([A-Za-z&\-\s]+)', full_text)
+    store_name = store_name_match.group(1).strip() if store_name_match else "Not found"
+
+    date_match = re.search(r'Date:\s*(\d{2}/\d{2}/\d{2})', full_text)
+    time_match = re.search(r'Time:\s*(\d{2}:\d{2}:\d{2})', full_text)
+    transaction_date = f"{date_match.group(1)} {time_match.group(1)}" if date_match and time_match else "Not found"
+
+    total_match = re.search(r'Total Sale\s*\$\s*([\d,]+\.\d{2})', full_text)
+    total = total_match.group(1) if total_match else "Not found"
+
+    tax = "0.00"
+
+    filtered_items = []
+    exclude_keywords = {
+        'INVOICE', 'PUMP', 'GALLONS', 'PRICE', 'DEBIT', 
+        'TOTAL', 'MERCH', 'TERM', 'PURCHASE', 'CHIP',
+        'SEG', 'REF', 'APPR', 'CODE', 'TRANSACTION',
+        'APPROVED', 'ARQC', 'ONLINE', 'VERIFIED', 'MODE',
+        'AID', 'TVR', 'IAD', 'TSI', 'ARC', 'THANK YOU'
+    }
+
+    lines = full_text.splitlines()
+    for i, line in enumerate(lines):
+        line = line.strip()
+        
+        if any(keyword in line.upper() for keyword in exclude_keywords):
+            continue
+        
+        if re.match(r'^[A-Z]+$', line) and i+1 < len(lines):
+            next_line = lines[i+1].strip()
+            price_match = re.match(r'^\$\s*([\d,]+\.\d{2})$', next_line)
+            if price_match:
+                filtered_items.append((f"{line} GAS", price_match.group(1)))
+                break
+
+    if not filtered_items:
+        product_match = re.search(r'Product\s+Amount\s+([A-Z]+)\s+\$\s*([\d,]+\.\d{2})', full_text)
+        if product_match:
+            filtered_items.append((f"{product_match.group(1)} GAS", product_match.group(2)))
+
+    pump_match = re.search(r'Pump\s+Gallons\s+Price\s+(\d+)\s+([\d,]+\.\d{3})\s+\$\s*([\d,]+\.\d{2})', full_text)
+    if pump_match:
+        filtered_items.append((f"PUMP {pump_match.group(1)}: {pump_match.group(2)} gallons @ ${pump_match.group(3)}/gal", ""))
+
+    return store_name, transaction_date, tax, total, filtered_items
+
 def upload_image_to_drive(image_bytes, filename="receipt.jpg", folder_id=None):
     SCOPES = ["https://www.googleapis.com/auth/drive"]
     credentials = service_account.Credentials.from_service_account_info(
@@ -249,7 +644,7 @@ def upload_image_to_drive(image_bytes, filename="receipt.jpg", folder_id=None):
 # === Streamlit UI ===
 st.title("🧾 Christo Personal Tax Reduction")
 
-format_option = st.selectbox("Select Receipt Format", ["Walmart", "Kum & Go", "Wells Fargo", "Generic"])
+format_option = st.selectbox("Select Receipt Format", ["Walmart", "Kum & Go", "Wells Fargo", "Pizza Ranch", "Kpot", "HyVee", "HyVee Fast & Fresh ", "Holiday Station Store", "Corner's Pantry", "Casey's", "Casey's Store", "Generic"])
 uploaded_file = st.file_uploader("Upload a receipt image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
@@ -262,6 +657,22 @@ if uploaded_file:
         store_name, date, tax, total, items = parse_kum_and_go(full_text)
     elif format_option == "Wells Fargo":
         store_name, date, tax, total, items = parse_wells_fargo(full_text)
+    elif format_option == "Pizza Ranch":
+        store_name, date, tax, total, items = parse_pizza_ranch(full_text)
+    elif format_option == "Kpot":
+        store_name, date, tax, total, items = parse_kpot(full_text)
+    elif format_option == "HyVee":
+        store_name, date, tax, total, items = parse_hy_vee(full_text)
+    elif format_option == "HyVee Fast 7 Fresh":
+        store_name, date, tax, total, items = parse_hyvee_fast_fresh(full_text)
+    elif format_option == "Holiday Station Store":
+        store_name, date, tax, total, items = parse_holiday_stationstore(full_text)
+    elif format_option == "Corner's Pantry":
+        store_name, date, tax, total, items = parse_corners_pantry(full_text)
+    elif format_option == "Casey's":
+        store_name, date, tax, total, items = parse_caseys(full_text)
+    elif format_option == "Casey's Store":
+        store_name, date, tax, total, items = parse_caseys_store(full_text)
     else:
         store_name, date, tax, total, items = parse_generic(full_text)
 
