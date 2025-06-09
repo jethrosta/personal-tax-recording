@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "christos-bill",
+  "private_key_id": "4d42ec315bda20c0ecff69b8f22baa97e438894f",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCx8tiZKRIJsYcJ\nuWh5beDZYK5+Qo/dSyoXZYUwYjTZHVVW51XqiVoYg8r093gR5o/H8jyz+3Gk1ZYU\nrE0TfXK+xYR3etovJ+YF+Qp1LWkz6S5C9lS5/assoPKtcuxApbGHfo+5KBRT5fZY\n0/tiYr2ouHQNZLjAn0uqKoiHosmizSERJH9BCury3uWT4/NRgTOnLjkNBzAoreQV\nkl1CjmTxMLmfGgJLAi6eSURUlmazGV1zmml0UizspmGQ0YlFOIQHjXgr6qcS/Y81\nNEzuaIq7C6gI/mCok0gYOyptgWn1mu5Dt+aoNFAXHUahoauJczapswVN9gl9IfFG\nKuZP/LD3AgMBAAECggEAF7LX1c36cQALk+f1WfagM1ME6hvDPR19hZAnpMHvd9rI\nOsKkVo/kR8+FgApVG00xaNeB7hZWlDU9v5MS0L2sQmvbsG3UEOOnZrQ8CE7768Xq\nO1DDB+IYoeDtcNwVSqbGdd0NFwOXcXT20e2pVPkBeS7XhdEcKcsNMKRpembbo6qk\n00W8Qsmdb4LUBSFS9QhUjgckfN5rghPeOLUTAmIdmveoI1eEh9iCtJoc6aw2msuZ\nDBnyxldLEZz1KBPASygwX6BAvRstQ+B5GbnEGoreURX6cvvJAV78jwbVpR/xDhsD\n5CcPafvtuHfQsr4Nj4U7qPF140SMKsx+vbxW9+12wQKBgQDrt4479/Ba2/QLgRwF\nbNd4hp4CjhnYkgeSCfK6TQ2lAG+ilRFYu6DXMjWyOYiSqnlDXdpO80NzmTil0JGu\np3hic0DWb2KOmRiT3p8+nIKetbJlxLl613Y86cHuKTmnZkNH+1r8o/oSfaG8BzR5\n+LiwM9l5iG1CoFeCarvQD+Y1OwKBgQDBQsBHQlx9/Rk1WjEMcg8NTUXBhh2rG7aA\nmyGFpN5f0hiFtGXSLDYXcr1pKoH4bt3vn2aAVR4rVnpwwDkJz/NqU0ih0FydyJFN\nKmJvknTL/i7rLzPi2Y+cuJTJaHyb5oMALUq930o0jdKPsMEwOof7mk33Ge+RneLK\nievH/NlHdQKBgDyJPIccKuc6u9dEhizCgifa8rOXSP38quMPmP3NkiaBESqA/B58\nuVbq9y1ZZ0C7dT8e2FUUVotWm1zCTte6/MjT7p/jpT0YBl7beqw6x7T41uMZ/cSV\nlzEXm42NmtfqBHd1Dy348t1S1HmUpB57CPt/pWd36Q+GXFMLFEbf/nBHAoGBAL9d\nV4O4JFnkypdXzYWjU2A6ib4NDUenU1mZQuJQ1JlRMlMCxGgOuykQxpliK/xR25Uw\n45BjuFH1eZw32sLqlP9NpHgGGA9s0OP1+i68eMad1Nuwi9Iu19O5uiqNOgYthL4i\nGwZUGehcHomF3mXhL1FmA5mQpvYrvqwLUdtfdc8ZAoGBANEHSGQQWILhq7BssTvA\n9bnhMm3Pd2W/IfdYn2KjaXg0yaznn9w8TsHoqd7qNhTo0OxszJMqA0esiakWHYPX\nhER5SFVP/P70a6L7W9pfEV7BJkE8Rn1H2eLMmFkaTFYUlrc+/MinhGQdaG2roD2D\nlqCIw4p+Fd8zYDWB5rA8d2gQ\n-----END PRIVATE KEY-----\n",
+  "client_email": "sheets-access-account@christos-bill.iam.gserviceaccount.com",
+  "client_id": "101968118055667786184",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sheets-access-account%40christos-bill.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
