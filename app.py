@@ -52,8 +52,22 @@ def extract_text_from_image(image_bytes):
     return full_text.strip()
 
 def get_next_available_row(sheet_id, credentials):
+    creds_dict = {
+        "type": st.secrets["gcp_service_account"]["type"],
+        "project_id": st.secrets["gcp_service_account"]["project_id"],
+        "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
+        "private_key": st.secrets["gcp_service_account"]["private_key"].replace('\\n', '\n'),
+        "client_email": st.secrets["gcp_service_account"]["client_email"],
+        "client_id": st.secrets["gcp_service_account"]["client_id"],
+        "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
+        "token_uri": st.secrets["gcp_service_account"]["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["gcp_service_account"]["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
+    }
     credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"], scopes=SCOPES)
+        creds_dict, 
+        scopes=SCOPES
+    )
     sheets_service = build('sheets', 'v4', credentials=credentials)
     sheet = sheets_service.spreadsheets()
     result = sheet.values().get(spreadsheetId=sheet_id, range='Sheet1!A:A').execute()
@@ -68,7 +82,7 @@ def send_to_sheets(sheet_id, store_name, date, tax, total, items, image_url):
         "type": st.secrets["gcp_service_account"]["type"],
         "project_id": st.secrets["gcp_service_account"]["project_id"],
         "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
-        "private_key": st.secrets["gcp_service_account"]["private_key"],
+        "private_key": st.secrets["gcp_service_account"]["private_key"].replace('\\n', '\n'),
         "client_email": st.secrets["gcp_service_account"]["client_email"],
         "client_id": st.secrets["gcp_service_account"]["client_id"],
         "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
@@ -221,7 +235,7 @@ def upload_image_to_drive(image_bytes, filename="receipt.jpg", folder_id=None):
         "type": st.secrets["gcp_service_account"]["type"],
         "project_id": st.secrets["gcp_service_account"]["project_id"],
         "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
-        "private_key": st.secrets["gcp_service_account"]["private_key"],
+        "private_key": st.secrets["gcp_service_account"]["private_key"].replace('\\n', '\n'),
         "client_email": st.secrets["gcp_service_account"]["client_email"],
         "client_id": st.secrets["gcp_service_account"]["client_id"],
         "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
