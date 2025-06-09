@@ -13,7 +13,6 @@ aws_access_key = st.secrets["aws"]["aws_access_key_id"]
 aws_secret_key = st.secrets["aws"]["aws_secret_access_key"]
 region = st.secrets["aws"]["region"]
 sheet_id = '1Bagw_IiVFHX942ACSTRs9ET3IdP1iIjCnSo3IOUJ73U'
-service_account_file = 'christos-bill-4d42ec315bda.json'
 folder_id = '1bsWOEg0Pp_yzekRYSnqXqbtriiChwZqi'
 
 textract_client = boto3.client(
@@ -59,9 +58,12 @@ def get_next_available_row(sheet_id, credentials):
     values = result.get('values', [])
     return len(values) + 1
 
-def send_to_sheets(sheet_id, service_account_file, store_name, date, tax, total, items, image_url):
-    SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-    credentials = service_account.Credentials.from_service_account_file(service_account_file, scopes=SCOPES)
+def send_to_sheets(sheet_id, store_name, date, tax, total, items, image_url):
+    SCOPES = [
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets"]
+    credentials = service_account.Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"], scopes=SCOPES)
     sheets_service = build('sheets', 'v4', credentials=credentials)
     next_row = get_next_available_row(sheet_id, credentials)
 
@@ -190,9 +192,12 @@ def parse_wells_fargo(full_text):
 
     return store_name, transaction_date, "N/A", total, []
 
-def upload_image_to_drive(service_account_file, image_bytes, filename="receipt.jpg", folder_id=None):
-    SCOPES = ['https://www.googleapis.com/auth/drive']
-    credentials = service_account.Credentials.from_service_account_file(service_account_file, scopes=SCOPES)
+def upload_image_to_drive( image_bytes, filename="receipt.jpg", folder_id=None):
+    SCOPES = [
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets"]
+    credentials = service_account.Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"], scopes=SCOPES)
     drive_service = build('drive', 'v3', credentials=credentials)
 
     file_metadata = {'name': filename}
@@ -255,8 +260,8 @@ if uploaded_file:
 
     if st.button("📤 Submit to Google Sheets"):
         try:
-            image_url = upload_image_to_drive(service_account_file, image_bytes, filename=uploaded_file.name, folder_id=folder_id)
-            success = send_to_sheets(sheet_id, service_account_file, store_name, date, tax, total, edited_items, image_url)
+            image_url = upload_image_to_drive( image_bytes, filename=uploaded_file.name, folder_id=folder_id)
+            success = send_to_sheets(sheet_id,  store_name, date, tax, total, edited_items, image_url)
             if success:
                 st.success("✅ Data and image successfully submitted to Google Sheets!")
                 st.markdown(f"[📷 View Image in Drive]({image_url})")
