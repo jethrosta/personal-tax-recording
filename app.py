@@ -74,7 +74,7 @@ def send_to_sheets(sheet_id, store_name, date, tax, total, items, image_url):
         "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
         "token_uri": st.secrets["gcp_service_account"]["token_uri"],
         "auth_provider_x509_cert_url": st.secrets["gcp_service_account"]["auth_provider_x509_cert_url"],
-        #"client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
+        "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
     }
     
     credentials = service_account.Credentials.from_service_account_info(
