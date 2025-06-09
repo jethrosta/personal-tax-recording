@@ -52,6 +52,8 @@ def extract_text_from_image(image_bytes):
     return full_text.strip()
 
 def get_next_available_row(sheet_id, credentials):
+    credentials = service_account.Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"], scopes=SCOPES)
     sheets_service = build('sheets', 'v4', credentials=credentials)
     sheet = sheets_service.spreadsheets()
     result = sheet.values().get(spreadsheetId=sheet_id, range='Sheet1!A:A').execute()
