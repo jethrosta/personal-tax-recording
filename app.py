@@ -7,6 +7,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
 import io
 from PIL import Image, ExifTags
+import datetime
 
 # --- Konfigurasi AWS dan Google Sheets ---
 aws_access_key = st.secrets["aws"]["aws_access_key_id"]
