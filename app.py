@@ -682,14 +682,19 @@ if uploaded_file:
 
     st.subheader("✏️ Editable Receipt Data")
     store_name = st.text_input("Store Name", store_name)
-    # Try parsing date string
+
+        # Attempt to parse the detected date, or fallback to today's date
     try:
-        parsed_date = datetime.datetime.strptime(date, "%m-%d-%Y").date()
+        # Make sure 'date' is a string, then parse
+        parsed_date = datetime.datetime.strptime(date, "%m/%d/%Y").date()
     except (TypeError, ValueError):
         parsed_date = datetime.date.today()
 
+    # Let user edit the date
     date_obj = st.date_input("Transaction Date", parsed_date)
-    date = date_obj.strftime("%m-%d-%Y")  # Or any preferred format
+
+    # Reformat to string if needed later (for Google Sheets, etc.)
+    date = date_obj.strftime("%m/%d/%Y")  # Or "%d-%m-%Y" based on your preference
     tax = st.text_input("Tax", str(tax) if tax is not None else "")
     total = st.text_input("Total", str(total) if total is not None else "")
 
