@@ -9,12 +9,7 @@ import io
 from PIL import Image, ExifTags
 
 # --- Konfigurasi AWS dan Google Sheets ---
-access_key = 'AKIAT2UAZPWABQQXR4G6'
-secret_key = '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'
-region = 'us-east-1'
-sheet_id = '1Bagw_IiVFHX942ACSTRs9ET3IdP1iIjCnSo3IOUJ73U'
-service_account_file = 'christos-bill-4d42ec315bda.json'
-folder_id = '1bsWOEg0Pp_yzekRYSnqXqbtriiChwZqi'
+
 
 textract_client = boto3.client(
     'textract',
