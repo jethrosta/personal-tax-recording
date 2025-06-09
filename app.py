@@ -21,6 +21,22 @@ textract_client = boto3.client(
     aws_secret_access_key=aws_secret_key,
     region_name=region
 )
+# Safely decode private key
+def parse_gcp_creds(secrets):
+    return {
+        "type": secrets["type"],
+        "project_id": secrets["project_id"],
+        "private_key_id": secrets["private_key_id"],
+        "private_key": secrets["private_key"].replace("\\n", "\n"),  # <- important fix
+        "client_email": secrets["client_email"],
+        "client_id": secrets["client_id"],
+        "auth_uri": secrets["auth_uri"],
+        "token_uri": secrets["token_uri"],
+        "auth_provider_x509_cert_url": secrets["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": secrets["client_x509_cert_url"],
+    }
+# Construct credentials
+creds_dict = parse_gcp_creds(st.secrets["gcp_service_account"])
 
 def correct_image_orientation(image_file):
     image = Image.open(image_file)
@@ -59,22 +75,7 @@ def get_next_available_row(sheet_id, credentials):
     return len(values) + 1
 
 def send_to_sheets(sheet_id, store_name, date, tax, total, items, image_url):
-    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
-    
-    # Create credentials from the service account info
-    creds_dict = {
-        "type": st.secrets["gcp_service_account"]["type"],
-        "project_id": st.secrets["gcp_service_account"]["project_id"],
-        "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
-        "private_key": st.secrets["gcp_service_account"]["private_key"].replace('\\n', '\n'),
-        "client_email": st.secrets["gcp_service_account"]["client_email"],
-        "client_id": st.secrets["gcp_service_account"]["client_id"],
-        "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
-        "token_uri": st.secrets["gcp_service_account"]["token_uri"],
-        "auth_provider_x509_cert_url": st.secrets["gcp_service_account"]["auth_provider_x509_cert_url"],
-        "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
-    }
-    
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]    
     credentials = service_account.Credentials.from_service_account_info(
         creds_dict,
         scopes=SCOPES
@@ -213,21 +214,6 @@ def parse_wells_fargo(full_text):
 
 def upload_image_to_drive(image_bytes, filename="receipt.jpg", folder_id=None):
     SCOPES = ["https://www.googleapis.com/auth/drive"]
-    
-    # Create credentials from the service account info
-    creds_dict = {
-        "type": st.secrets["gcp_service_account"]["type"],
-        "project_id": st.secrets["gcp_service_account"]["project_id"],
-        "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
-        "private_key": st.secrets["gcp_service_account"]["private_key"].replace('\\n', '\n'),
-        "client_email": st.secrets["gcp_service_account"]["client_email"],
-        "client_id": st.secrets["gcp_service_account"]["client_id"],
-        "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
-        "token_uri": st.secrets["gcp_service_account"]["token_uri"],
-        "auth_provider_x509_cert_url": st.secrets["gcp_service_account"]["auth_provider_x509_cert_url"],
-        "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"]
-    }
-    
     credentials = service_account.Credentials.from_service_account_info(
         creds_dict,
         scopes=SCOPES
