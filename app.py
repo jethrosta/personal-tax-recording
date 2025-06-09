@@ -688,7 +688,8 @@ if uploaded_file:
     except (TypeError, ValueError):
         parsed_date = datetime.date.today()
 
-    date = st.date_input("Transaction Date", parsed_date)
+    date_obj = st.date_input("Transaction Date", parsed_date)
+    date = date_obj.strftime("%dd-%mm-%YYYY")  # Or any preferred format
     tax = st.text_input("Tax", tax)
     total = st.text_input("Total", total)
 
