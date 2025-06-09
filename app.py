@@ -684,12 +684,12 @@ if uploaded_file:
     store_name = st.text_input("Store Name", store_name)
     # Try parsing date string
     try:
-        parsed_date = datetime.datetime.strptime(date, "%dd-%mm-%YYYY").date()
+        parsed_date = datetime.datetime.strptime(date, "%m-%d-%Y").date()
     except (TypeError, ValueError):
         parsed_date = datetime.date.today()
 
     date_obj = st.date_input("Transaction Date", parsed_date)
-    date = date_obj.strftime("%d-%m-%Y")  # Or any preferred format
+    date = date_obj.strftime("%m-%d-%Y")  # Or any preferred format
     tax = st.text_input("Tax", str(tax) if tax is not None else "")
     total = st.text_input("Total", str(total) if total is not None else "")
 
