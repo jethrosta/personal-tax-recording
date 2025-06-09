@@ -681,7 +681,13 @@ if uploaded_file:
 
     st.subheader("✏️ Editable Receipt Data")
     store_name = st.text_input("Store Name", store_name)
-    date = st.text_input("Transaction Date", date)
+    # Try parsing date string
+    try:
+        parsed_date = datetime.datetime.strptime(date, "%dd-%mm-%YYYY").date()
+    except (TypeError, ValueError):
+        parsed_date = datetime.date.today()
+
+    date = st.date_input("Transaction Date", parsed_date)
     tax = st.text_input("Tax", tax)
     total = st.text_input("Total", total)
 
