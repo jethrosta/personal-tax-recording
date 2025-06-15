@@ -3,8 +3,10 @@
 
 A Streamlit application that helps users digitize and organize receipts using OCR (AWS Textract) and store data in Google Sheets with receipt images in Google Drive.
 
-<div>
-   <img src="https://github.com/jethrosta/personal-tax-recording/blob/main/images/Screenshot 2025-06-15 at 14.30.00.png"
+<div align="center">
+   <img src="https://github.com/jethrosta/personal-tax-recording/blob/main/images/Screenshot 2025-06-15 at 14.30.00.png">
+   <br>
+   <img src="https://github.com/jethrosta/personal-tax-recording/blob/main/images/bills_ocr_record.gif">
 </div>
 
 ## ✨ Features
