@@ -13,9 +13,10 @@ import datetime
 aws_access_key = st.secrets["aws"]["aws_access_key_id"]
 aws_secret_key = st.secrets["aws"]["aws_secret_access_key"]
 region = st.secrets["aws"]["region"]
-sheet_id = '1Bagw_IiVFHX942ACSTRs9ET3IdP1iIjCnSo3IOUJ73U'
-folder_id = '1bsWOEg0Pp_yzekRYSnqXqbtriiChwZqi'
-spreadsheet_url = 'https://docs.google.com/spreadsheets/d/1Bagw_IiVFHX942ACSTRs9ET3IdP1iIjCnSo3IOUJ73U/edit?usp=sharing'
+# Google Sheets / Drive credentials
+sheet_id = st.secrets["google"]["sheet_id"]
+folder_id = st.secrets["google"]["folder_id"]
+spreadsheet_url = st.secrets["google"]["spreadsheet_url"]
 
 textract_client = boto3.client(
     'textract',
