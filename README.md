@@ -1,7 +1,7 @@
 
 # 🧾 Personal Receipt Recording System
 
-A Streamlit application that helps users digitize and organize receipts using OCR (AWS Textract) and store data in Google Sheets with receipt images in Google Drive.
+A Streamlit application that helps users digitize and organize United States of America's receipts using OCR (**AWS Textract**) and store data in Google Sheets with receipt images in Google Drive.
 
 <div align="center">
    <img src="https://github.com/jethrosta/personal-tax-recording/blob/main/images/Screenshot 2025-06-15 at 14.30.00.png">
