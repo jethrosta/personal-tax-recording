@@ -777,12 +777,13 @@ if uploaded_file:
         # ------------------- SUBMIT SECTION -------------------
 
         if st.button("📤 Submit to Google Sheets"):
-            try:
-                image_url = upload_image_to_drive(image_bytes, filename=uploaded_file.name, folder_id=folder_id)
-                success = send_to_sheets(sheet_id, store_name, date, tax, total, edited_items, image_url)
-                if success:
-                    st.success("✅ Data dan gambar berhasil dikirim ke Google Sheets!")
-                    st.markdown(f"[📷 Lihat Gambar di Drive]({image_url})")
-                    st.markdown(f"[🔗 Lihat Google Sheets]({spreadsheet_url})")
-            except Exception as e:
-                st.error(f"Terjadi kesalahan selama pengiriman: {e}")
+            with st.spinner("Mengirim data dan gambar... Mohon tunggu 🙏"):
+                try:
+                    image_url = upload_image_to_drive(image_bytes, filename=uploaded_file.name, folder_id=folder_id)
+                    success = send_to_sheets(sheet_id, store_name, date, tax, total, edited_items, image_url)
+                    if success:
+                        st.success("✅ Data dan gambar berhasil dikirim ke Google Sheets!")
+                        st.markdown(f"[📷 Lihat Gambar di Drive]({image_url})")
+                        st.markdown(f"[🔗 Lihat Google Sheets]({spreadsheet_url})")
+                except Exception as e:
+                    st.error(f"Terjadi kesalahan selama pengiriman: {e}")
