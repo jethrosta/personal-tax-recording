@@ -1,5 +1,4 @@
 import streamlit as st
-import boto3
 import re
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -8,22 +7,16 @@ from googleapiclient.http import MediaIoBaseUpload
 import io
 from PIL import Image, ExifTags
 import datetime
+import base64
+from mistralai import Mistral
 
-# --- Konfigurasi AWS dan Google Sheets ---
-aws_access_key = st.secrets["aws"]["aws_access_key_id"]
-aws_secret_key = st.secrets["aws"]["aws_secret_access_key"]
-region = st.secrets["aws"]["region"]
+# --- Konfigurasi Mistral AI dan Google Sheets ---
+mistral_api_key = st.secrets["mistralai"]["mistral_api_key"]
 # Google Sheets / Drive credentials
 sheet_id = st.secrets["google"]["sheet_id"]
 folder_id = st.secrets["google"]["folder_id"]
 spreadsheet_url = st.secrets["google"]["spreadsheet_url"]
 
-textract_client = boto3.client(
-    'textract',
-    aws_access_key_id=aws_access_key,
-    aws_secret_access_key=aws_secret_key,
-    region_name=region
-)
 # Safely decode private key
 def parse_gcp_creds(secrets):
     return {
@@ -66,14 +59,51 @@ def correct_image_orientation(image_file):
     return image
 
 def extract_text_from_image(image_bytes):
-    response = textract_client.detect_document_text(Document={'Bytes': image_bytes})
-    full_text = '\n'.join(block['Text'] for block in response['Blocks'] if block['BlockType'] == 'LINE')
-    return full_text.strip()
+    """
+    Extracts text from an image using Mistral AI's OCR service.
+    
+    Args:
+        image_bytes (bytes): The image data in bytes.
+        
+    Returns:
+        str: The extracted text from the image, or an error message if OCR fails.
+    """
+    try:
+        # Initialize Mistral AI client
+        client = Mistral(api_key=mistral_api_key)
+
+        # Encode image bytes to base64
+        base64_image = base64.b64encode(image_bytes).decode('utf-8')
+
+        # Call Mistral AI OCR service
+        ocr_response = client.ocr.process(model="mistral-ocr-latest",
+                                            document={
+                                                "type": "image_url",
+                                                "image_url": f"data:image/jpeg;base64,{base64_image}"
+                                            },
+                                            include_image_base64=True
+                                        )
+        
+        # --- PERBAIKAN DI SINI ---
+        # Mengakses teks dari ocr_response.pages[0].markdown
+        if ocr_response and ocr_response.pages and len(ocr_response.pages) > 0:
+            full_text = ocr_response.pages[0].markdown
+        else:
+            full_text = ""
+            st.warning("Respons OCR dari Mistral AI tidak mengandung struktur 'pages' atau 'markdown' yang diharapkan. Mohon periksa format respons.")
+            st.code(str(ocr_response)) # Tampilkan respons mentah untuk debugging
+
+        return full_text.strip()
+    except Exception as e:
+        st.error(f"Error extracting text with Mistral AI OCR: {e}")
+        return f"Error: Failed to extract text - {e}"
+
+# --- Kode lainnya tetap sama seperti sebelumnya ---
 
 def get_next_available_row(sheet_id, credentials):
     sheets_service = build('sheets', 'v4', credentials=credentials)
     sheet = sheets_service.spreadsheets()
-    result = sheet.values().get(spreadsheetId=sheet_id, range='Sheet1!A:A').execute()
+    result = sheet.values().get(spreadsheetId=sheet_id, range='Sheet1').execute()
     values = result.get('values', [])
     return len(values) + 1
 
@@ -95,20 +125,21 @@ def send_to_sheets(sheet_id, store_name, date, tax, total, items, image_url):
                     store_name,
                     date,
                     name,
-                    f"${price}",
+                    float(price.replace(',', '')),
                     f"${tax}",
                     f"${total}",
                     image_url
                 ])
             else:
                 item_rows.append([
-                    '', '', name, f"${price}", '', '', ''
+                    '', '', name, float(price.replace(',', '')), '', '', ''
                 ])
 
-        sheets_service.spreadsheets().values().update(
+        sheets_service.spreadsheets().values().append(
             spreadsheetId=sheet_id,
-            range=f'Sheet1!A{next_row}',
+            range='Sheet1',
             valueInputOption='RAW',
+            insertDataOption='INSERT_ROWS',
             body={'values': item_rows}
         ).execute()
         return True
@@ -334,7 +365,7 @@ def parse_hy_vee(full_text):
                 store_name = line.strip()
                 break
 
-    date_time_match = re.search(r'(\d{2}/\d{2}/\d{2})\s+(\d{1,2}:\d{2}\s+[AP]M)', full_text)
+    date_time_match = re.search(r'(\d{2}/\d{2}/\d{2})\s+(\d{1,2}:\d{2}\s*[AP]M)', full_text)
     transaction_date = f"{date_time_match.group(1)} {date_time_match.group(2)}" if date_time_match else "Not found"
 
     total_match = re.search(r'TOTAL\s+([\d,]+\.\d{2})', full_text)
@@ -651,71 +682,107 @@ uploaded_file = st.file_uploader("Upload a receipt image", type=["jpg", "jpeg", 
 
 if uploaded_file:
     image_bytes = uploaded_file.read()
-    full_text = extract_text_from_image(image_bytes)
+    with st.spinner("🔍 Memproses gambar dengan OCR..."):
+        full_text = extract_text_from_image(image_bytes)
 
-    if format_option == "Walmart":
-        store_name, date, tax, total, items = parse_walmart(full_text)
-    elif format_option == "Kum & Go":
-        store_name, date, tax, total, items = parse_kum_and_go(full_text)
-    elif format_option == "Wells Fargo":
-        store_name, date, tax, total, items = parse_wells_fargo(full_text)
-    elif format_option == "Pizza Ranch":
-        store_name, date, tax, total, items = parse_pizza_ranch(full_text)
-    elif format_option == "Kpot":
-        store_name, date, tax, total, items = parse_kpot(full_text)
-    elif format_option == "HyVee":
-        store_name, date, tax, total, items = parse_hy_vee(full_text)
-    elif format_option == "HyVee Fast 7 Fresh":
-        store_name, date, tax, total, items = parse_hyvee_fast_fresh(full_text)
-    elif format_option == "Holiday Station Store":
-        store_name, date, tax, total, items = parse_holiday_stationstore(full_text)
-    elif format_option == "Corner's Pantry":
-        store_name, date, tax, total, items = parse_corners_pantry(full_text)
-    elif format_option == "Casey's":
-        store_name, date, tax, total, items = parse_caseys(full_text)
-    elif format_option == "Casey's Store":
-        store_name, date, tax, total, items = parse_caseys_store(full_text)
+    # Pastikan full_text bukan string error dari fungsi extract_text_from_image
+    if full_text.startswith("Error:"):
+        st.error(f"Gagal memproses OCR: {full_text}")
     else:
-        store_name, date, tax, total, items = parse_generic(full_text)
+        if format_option == "Walmart":
+            store_name, date, tax, total, items = parse_walmart(full_text)
+        elif format_option == "Kum & Go":
+            store_name, date, tax, total, items = parse_kum_and_go(full_text)
+        elif format_option == "Wells Fargo":
+            store_name, date, tax, total, items = parse_wells_fargo(full_text)
+        elif format_option == "Pizza Ranch":
+            store_name, date, tax, total, items = parse_pizza_ranch(full_text)
+        elif format_option == "Kpot":
+            store_name, date, tax, total, items = parse_kpot(full_text)
+        elif format_option == "HyVee":
+            store_name, date, tax, total, items = parse_hy_vee(full_text)
+        elif format_option == "HyVee Fast & Fresh": # Perbaikan nama opsi di sini
+            store_name, date, tax, total, items = parse_hyvee_fast_fresh(full_text)
+        elif format_option == "Holiday Station Store":
+            store_name, date, tax, total, items = parse_holiday_stationstore(full_text)
+        elif format_option == "Corner's Pantry":
+            store_name, date, tax, total, items = parse_corners_pantry(full_text)
+        elif format_option == "Casey's":
+            store_name, date, tax, total, items = parse_caseys(full_text)
+        elif format_option == "Casey's Store":
+            store_name, date, tax, total, items = parse_caseys_store(full_text)
+        else:
+            store_name, date, tax, total, items = parse_generic(full_text)
 
-    image = correct_image_orientation(uploaded_file)
-    st.image(image, caption="Uploaded Receipt", use_container_width=True)
+        image = correct_image_orientation(uploaded_file)
+        st.image(image, caption="Uploaded Receipt", use_container_width=True)
 
-    st.subheader("✏️ Editable Receipt Data")
-    store_name = st.text_input("Store Name", store_name)
+        st.subheader("✏️ Editable Receipt Data")
+
+        store_name = st.text_input("Store Name", store_name)
 
         # Attempt to parse the detected date, or fallback to today's date
-    try:
-        # Make sure 'date' is a string, then parse
-        parsed_date = datetime.datetime.strptime(date, "%m/%d/%Y").date()
-    except (TypeError, ValueError):
-        parsed_date = datetime.date.today()
-
-    # Let user edit the date
-    date_obj = st.date_input("Transaction Date", parsed_date)
-
-    # Reformat to string if needed later (for Google Sheets, etc.)
-    date = date_obj.strftime("%m/%d/%Y")  # Or "%d-%m-%Y" based on your preference
-    tax = st.text_input("Tax", str(tax) if tax is not None else "")
-    total = st.text_input("Total", str(total) if total is not None else "")
-
-    st.write("**Items (editable):**")
-    edited_items = []
-    for idx, (name, price) in enumerate(items):
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            item_name = st.text_input(f"Item Name {idx+1}", value=name, key=f"name_{idx}")
-        with col2:
-            item_price = st.text_input(f"Price {idx+1}", value=price, key=f"price_{idx}")
-        edited_items.append((item_name, item_price))
-
-    if st.button("📤 Submit to Google Sheets"):
         try:
-            image_url = upload_image_to_drive( image_bytes, filename=uploaded_file.name, folder_id=folder_id)
-            success = send_to_sheets(sheet_id,  store_name, date, tax, total, edited_items, image_url)
-            if success:
-                st.success("✅ Data and image successfully submitted to Google Sheets!")
-                st.markdown(f"[📷 View Image in Drive]({image_url})")
-                st.markdown(f"[🔗 View Google Sheets]({spreadsheet_url})")
-        except Exception as e:
-            st.error(f"Error during submission: {e}")
+            parsed_date = datetime.datetime.strptime(date, "%m/%d/%Y").date()
+        except (TypeError, ValueError):
+            parsed_date = datetime.date.today()
+
+        # Let user edit the date
+        date_obj = st.date_input("Transaction Date", parsed_date)
+        date = date_obj.strftime("%m/%d/%Y")
+
+        tax = st.text_input("Tax", str(tax) if tax is not None else "")
+        total = st.text_input("Total", str(total) if total is not None else "")
+
+        # ------------------- ITEM HANDLING SECTION -------------------
+
+        st.subheader("🛍️ Items (Editable, Addable, Removable)")
+
+        # Inisialisasi state list untuk menyimpan item
+        if "manual_items" not in st.session_state:
+            st.session_state.manual_items = items.copy()
+
+        # Tampilkan item yang bisa diedit dan dihapus
+        edited_items = []
+        for idx, (name, price) in enumerate(st.session_state.manual_items):
+            col1, col2, col3 = st.columns([3, 1.5, 0.5])
+            with col1:
+                item_name = st.text_input(f"Item Name {idx+1}", value=name, key=f"name_{idx}")
+            with col2:
+                item_price = st.text_input(f"Price {idx+1}", value=price, key=f"price_{idx}")
+            with col3:
+                if st.button("🗑️", key=f"delete_{idx}"):
+                    st.session_state.manual_items.pop(idx)
+                    st.rerun()
+            edited_items.append((item_name, item_price))
+
+        # Tambah item baru
+        st.markdown("---")
+        st.subheader("➕ Tambah Item Manual")
+        with st.form("add_item_form"):
+            new_item_name = st.text_input("Nama Item")
+            new_item_price = st.text_input("Harga Item ($)")
+            submitted = st.form_submit_button("Tambah Item")
+            if submitted:
+                if new_item_name and new_item_price:
+                    st.session_state.manual_items.append((new_item_name.strip(), new_item_price.strip()))
+                    st.success(f"Item '{new_item_name}' berhasil ditambahkan.")
+                    st.rerun()
+                else:
+                    st.error("Mohon isi nama dan harga item.")
+
+        # Gunakan versi final item
+        edited_items = st.session_state.manual_items
+
+        # ------------------- SUBMIT SECTION -------------------
+
+        if st.button("📤 Submit to Google Sheets"):
+            try:
+                image_url = upload_image_to_drive(image_bytes, filename=uploaded_file.name, folder_id=folder_id)
+                success = send_to_sheets(sheet_id, store_name, date, tax, total, edited_items, image_url)
+                if success:
+                    st.success("✅ Data dan gambar berhasil dikirim ke Google Sheets!")
+                    st.markdown(f"[📷 Lihat Gambar di Drive]({image_url})")
+                    st.markdown(f"[🔗 Lihat Google Sheets]({spreadsheet_url})")
+            except Exception as e:
+                st.error(f"Terjadi kesalahan selama pengiriman: {e}")
