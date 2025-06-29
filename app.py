@@ -119,21 +119,33 @@ def send_to_sheets(sheet_id, store_name, date, tax, total, items, image_url):
         next_row = get_next_available_row(sheet_id, credentials)
 
         item_rows = []
-        for i, (name, price) in enumerate(items):
-            if i == 0:
-                item_rows.append([
-                    store_name,
-                    date,
-                    name,
-                    float(price.replace(',', '')),
-                    f"${tax}",
-                    f"${total}",
-                    image_url
-                ])
-            else:
-                item_rows.append([
-                    '', '', name, float(price.replace(',', '')), '', '', ''
-                ])
+        if not items:
+            # Fallback jika tidak ada item
+            item_rows.append([
+                store_name,
+                date,
+                '',         # Item kosong
+                '',         # Price kosong
+                f"${tax}",
+                f"${total}",
+                image_url
+            ])
+        else:
+            for i, (name, price) in enumerate(items):
+                if i == 0:
+                    item_rows.append([
+                        store_name,
+                        date,
+                        name,
+                        float(price.replace(',', '')),
+                        f"${tax}",
+                        f"${total}",
+                        image_url
+                    ])
+                else:
+                    item_rows.append([
+                        '', '', name, float(price.replace(',', '')), '', '', ''
+                    ])
 
         sheets_service.spreadsheets().values().append(
             spreadsheetId=sheet_id,
