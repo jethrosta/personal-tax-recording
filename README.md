@@ -1,7 +1,8 @@
+# 🧾 Automated Tax Receipt Recording System using OCR and Google Integration
 
-# 🧾 Personal Receipt Recording System
+This project was designed to streamline my father's tax deduction process by automating the collection and organization of receipt data throughout the year. The core challenge was the absence of a system that could digitize and extract relevant information from receipts in a fast and structured way.
 
-A Streamlit application that helps users digitize and organize United States of America's receipts using OCR (**AWS Textract**) and store data in Google Sheets with receipt images in Google Drive.
+To solve this, I developed a receipt recording system powered by Optical Character Recognition (OCR) and integrated with Mistral AI's advanced OCR API. The system captures receipt images, extracts key data fields (such as merchant, date, total amount, and tax category), and logs them automatically into a Google Spreadsheet. Additionally, the original receipt images are uploaded to Google Drive, with direct links included in the spreadsheet for verification and archival purposes.
 
 <div align="center">
    <img src="https://github.com/jethrosta/personal-tax-recording/blob/main/images/Screenshot 2025-06-15 at 14.30.00.png">
@@ -12,8 +13,8 @@ A Streamlit application that helps users digitize and organize United States of 
 ## ✨ Features
 
 - **Multi-format support**: Parses receipts from various stores (Walmart, Kum & Go, Wells Fargo, Pizza Ranch, etc.)
-- **OCR Processing**: Uses AWS Textract for accurate text extraction from receipt images
-- **Auto-orientation**: Corrects image orientation based on EXIF data
+- **OCR Processing**: Uses [Mistral AI](https://mistral.ai/) for accurate text extraction from receipt images
+- **Preprocessing Data**: Corrects image orientation using OpenCV
 - **Cloud Storage**: Stores receipt images in Google Drive with public links
 - **Data Organization**: Records all receipt data in Google Sheets
 - **Editable Interface**: Allows manual correction of extracted data before submission
@@ -22,15 +23,15 @@ A Streamlit application that helps users digitize and organize United States of 
 
 - **Python 3**
 - **Streamlit** (Web UI)
-- **AWS Textract** (OCR)
+- **Mistral AI** (OCR)
 - **Google Sheets API** (Data storage)
 - **Google Drive API** (Image storage)
-- **Pillow (PIL)** (Image processing)
+- **OpenCV** (Image processing)
 
 ## 🔧 Setup Instructions
 
 ### Prerequisites
-- AWS account with Textract access
+- Mistral AI Account with basic OCR
 - Google Cloud project with Sheets and Drive APIs enabled
 - Python 3.8+
 
@@ -46,11 +47,8 @@ A Streamlit application that helps users digitize and organize United States of 
 3. Set up your secrets:
    - Create a `.streamlit/secrets.toml` file with your credentials
    ```bash
-   [aws]
-    aws_access_key_id = "your_aws_key"
-    aws_secret_access_key = "your_aws_secret"
-    region = "your_region"
-    
+    [mistral]
+    mistral_api_key = "your_mistral_key"
     [google]
     sheet_id = "your_google_sheet_id"
     folder_id = "your_google_drive_folder_id"
