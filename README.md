@@ -24,6 +24,7 @@ To solve this, I developed a receipt recording system powered by Optical Charact
 - **Python 3**
 - **Streamlit** (Web UI)
 - **Mistral AI** (OCR)
+  <img src="https://docs.mistral.ai/img/basic_ocr_graph.png" >
 - **Google Sheets API** (Data storage)
 - **Google Drive API** (Image storage)
 - **OpenCV** (Image processing)
@@ -107,7 +108,7 @@ Contributions are welcome! Please open an issue or submit a pull request.
 
 ## 🙏 Acknowledgments
 - Built to solve my father's 3-year receipt organization challenge
-- Developed in just 3 days using Python and cloud services
+- Developed in 2 weeks using Python, Google cloud services, and Mistral AI API endpoint
 
 
 You can customize this further by:
