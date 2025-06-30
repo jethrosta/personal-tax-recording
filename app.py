@@ -1,11 +1,16 @@
-import streamlit as st
-import re
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseUpload
+import cv2
+import numpy as np
+from imutils.perspective import four_point_transform 
+from PIL import Image 
 import io
-from PIL import Image, ExifTags
+import streamlit as st 
+import re
+from google.oauth2 import service_account 
+from googleapiclient.discovery import build 
+from googleapiclient.errors import HttpError 
+from googleapiclient.http import MediaIoBaseUpload 
+import io
+from PIL import Image, ExifTags 
 import datetime
 import base64
 from mistralai import Mistral
@@ -17,7 +22,59 @@ sheet_id = st.secrets["google"]["sheet_id"]
 folder_id = st.secrets["google"]["folder_id"]
 spreadsheet_url = st.secrets["google"]["spreadsheet_url"]
 
-# Safely decode private key
+# Fungsi untuk mengubah ukuran gambar
+def resizer(image, width=500):
+    h, w, c = image.shape
+    height = int((h / w) * width)
+    return cv2.resize(image, (width, height)), (width, height)
+
+# Fungsi untuk memindai dokumen
+def document_scanner(image):
+    img_re, size = resizer(image)
+    detail = cv2.detailEnhance(img_re, sigma_s=20, sigma_r=0.15)
+    gray = cv2.cvtColor(detail, cv2.COLOR_BGR2GRAY)
+    blur = cv2.GaussianBlur(gray, (5,5),1)
+    edge = cv2.Canny(blur,75,200)
+    kernel = np.ones((5,5),np.uint8)
+    dilate = cv2.dilate(edge,kernel,iterations=1)
+    closing = cv2.morphologyEx(dilate, cv2.MORPH_CLOSE, kernel)
+
+    cnts, _ = cv2.findContours(closing, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = sorted(cnts, key=cv2.contourArea, reverse=True)
+
+    four_points = None
+    for c in cnts:
+        peri = cv2.arcLength(c, True)
+        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+        if len(approx) == 4:
+            four_points = np.squeeze(approx)
+            break
+
+    if four_points is None:
+        raise Exception("Document boundary not found")
+
+    multiplier = image.shape[1] / size[0]
+    four_points = (four_points * multiplier).astype(int)
+    wrap = four_point_transform(image, four_points)
+    return wrap
+
+# Fungsi untuk memindai dan mengekstrak gambar
+def scan_and_extract(image_bytes):
+    pil = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    np_img = np.array(pil)[:, :, ::-1]
+    
+    # Scan dokumen
+    try:
+        scanned = document_scanner(np_img)
+        is_success, buffer = cv2.imencode(".jpg", scanned)
+        if not is_success:
+            raise Exception("Encoding failed")
+        return buffer.tobytes()
+    except Exception as e:
+        st.warning(f"⚠️ Scan gagal: {e}. Menggunakan gambar asli.")
+        return image_bytes
+
+# Fungsi untuk mendekode kredensial GCP
 def parse_gcp_creds(secrets):
     return {
         "type": secrets["type"],
@@ -31,14 +88,15 @@ def parse_gcp_creds(secrets):
         "auth_provider_x509_cert_url": secrets["auth_provider_x509_cert_url"],
         "client_x509_cert_url": secrets["client_x509_cert_url"],
     }
-# Construct credentials
+
+# Mengonfigurasi kredensial
 creds_dict = parse_gcp_creds(st.secrets["gcp_service_account"])
 
+# Fungsi untuk memperbaiki orientasi gambar ketika ditampilkan ke user
 def correct_image_orientation(image_file):
     image = Image.open(image_file)
     
     try:
-        # Ambil orientation tag dari EXIF
         for orientation in ExifTags.TAGS.keys():
             if ExifTags.TAGS[orientation] == 'Orientation':
                 break
@@ -58,6 +116,7 @@ def correct_image_orientation(image_file):
 
     return image
 
+# Fungsi untuk mengekstrak teks dari gambar menggunakan layanan OCR
 def extract_text_from_image(image_bytes):
     """
     Extracts text from an image using Mistral AI's OCR service.
@@ -69,7 +128,7 @@ def extract_text_from_image(image_bytes):
         str: The extracted text from the image, or an error message if OCR fails.
     """
     try:
-        # Initialize Mistral AI client
+        # inisialisasi Client Mistral AI
         client = Mistral(api_key=mistral_api_key)
 
         # Encode image bytes to base64
@@ -84,7 +143,6 @@ def extract_text_from_image(image_bytes):
                                             include_image_base64=True
                                         )
         
-        # --- PERBAIKAN DI SINI ---
         # Mengakses teks dari ocr_response.pages[0].markdown
         if ocr_response and ocr_response.pages and len(ocr_response.pages) > 0:
             full_text = ocr_response.pages[0].markdown
@@ -98,8 +156,7 @@ def extract_text_from_image(image_bytes):
         st.error(f"Error extracting text with Mistral AI OCR: {e}")
         return f"Error: Failed to extract text - {e}"
 
-# --- Kode lainnya tetap sama seperti sebelumnya ---
-
+# Fungsi untuk mendapatkan baris berikutnya yang tersedia di Google Sheets
 def get_next_available_row(sheet_id, credentials):
     sheets_service = build('sheets', 'v4', credentials=credentials)
     sheet = sheets_service.spreadsheets()
@@ -107,6 +164,7 @@ def get_next_available_row(sheet_id, credentials):
     values = result.get('values', [])
     return len(values) + 1
 
+# Fungsi untuk mengirim data ke Google Sheets
 def send_to_sheets(sheet_id, store_name, date, tax, total, items, image_url):
     SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]    
     credentials = service_account.Credentials.from_service_account_info(
@@ -162,7 +220,7 @@ def send_to_sheets(sheet_id, store_name, date, tax, total, items, image_url):
         st.error(f"Unexpected error: {str(e)}")
         return False
 
-
+# Fungsi untuk mem-parsing teks dari struk Walmart
 def parse_walmart(full_text):
     lines = full_text.splitlines()
     store_name = next((line.strip() for line in lines if re.match(r'^[A-Za-z\s&/.]+$', line.strip()) and len(line.strip()) > 3), 'Not found')
@@ -195,6 +253,7 @@ def parse_walmart(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk Kum & Go
 def parse_kum_and_go(full_text):
     store_name_match = re.match(r'^([A-Za-z&\s]+)', full_text)
     store_name = store_name_match.group(1).strip() if store_name_match else "Not found"
@@ -220,6 +279,7 @@ def parse_kum_and_go(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk generik
 def parse_generic(full_text):
     first_line = full_text.strip().split('\n')[0]  # Get the first line
     store_name = ' '.join(first_line.strip().split()) 
@@ -245,6 +305,7 @@ def parse_generic(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk Wells Fargo
 def parse_wells_fargo(full_text):
     first_line = full_text.splitlines()[0]
     store_name_match = re.match(r'^([A-Z&.\-\s]+)$', first_line.strip())
@@ -258,6 +319,7 @@ def parse_wells_fargo(full_text):
 
     return store_name, transaction_date, "N/A", total, []
 
+# Fungsi untuk mem-parsing teks dari struk Get N Go
 def parse_get_n_go(full_text):
     store_name_match = re.match(r'^(.+?)\s+#\d+', full_text)
     store_name = store_name_match.group(1).strip() if store_name_match else "Not found"
@@ -283,6 +345,7 @@ def parse_get_n_go(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk Pizza Ranch
 def parse_pizza_ranch(full_text):
     lines = full_text.splitlines()
     store_name = next((line.strip() for line in lines if re.match(r'^[A-Za-z\s#]+$', line.strip()) and len(line.strip()) > 3), 'Not found')
@@ -325,6 +388,7 @@ def parse_pizza_ranch(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk K-Pot
 def parse_kpot(full_text):
     lines = full_text.splitlines()
     store_name = next((line.strip() for line in lines if re.match(r'^[A-Za-z\s&]+$', line.strip()) and len(line.strip()) > 3), 'Not found')
@@ -368,6 +432,7 @@ def parse_kpot(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk Hy-Vee
 def parse_hy_vee(full_text):
     lines = full_text.splitlines()
     store_name = 'Not found'
@@ -417,6 +482,7 @@ def parse_hy_vee(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk Hy-Vee Fast Fresh
 def parse_hyvee_fast_fresh(full_text):
     store_name_match = re.match(r'^([A-Za-z&\-\s]+)', full_text)
     store_name = store_name_match.group(1).strip() if store_name_match else "Not found"
@@ -464,6 +530,7 @@ def parse_hyvee_fast_fresh(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk Holiday Station Store
 def parse_holiday_stationstore(full_text):
     lines = full_text.splitlines()
     store_name = next((line.strip() for line in lines if re.match(r'^[A-Za-z\s]+$', line.strip()) and len(line.strip()) > 3 and "Order Number" not in line), 'Not found')
@@ -506,6 +573,7 @@ def parse_holiday_stationstore(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk Corners Pantry
 def parse_corners_pantry(full_text):
     lines = [line.strip() for line in full_text.splitlines() if line.strip()]
     store_name = next((line for line in lines if not re.match(r'^\d', line) and 
@@ -558,6 +626,7 @@ def parse_corners_pantry(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk Casey's
 def parse_caseys(full_text):
     store_name = full_text.split('\n')[0].strip()
 
@@ -606,6 +675,7 @@ def parse_caseys(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mem-parsing teks dari struk Casey's Store
 def parse_caseys_store(full_text):
     store_name_match = re.match(r'^([A-Za-z&\-\s]+)', full_text)
     store_name = store_name_match.group(1).strip() if store_name_match else "Not found"
@@ -653,6 +723,7 @@ def parse_caseys_store(full_text):
 
     return store_name, transaction_date, tax, total, filtered_items
 
+# Fungsi untuk mengirim gambar ke drive
 def upload_image_to_drive(image_bytes, filename="receipt.jpg", folder_id=None):
     SCOPES = ["https://www.googleapis.com/auth/drive"]
     credentials = service_account.Credentials.from_service_account_info(
@@ -694,8 +765,11 @@ uploaded_file = st.file_uploader("Upload a receipt image", type=["jpg", "jpeg", 
 
 if uploaded_file:
     image_bytes = uploaded_file.read()
-    with st.spinner("🔍 Memproses gambar dengan OCR..."):
-        full_text = extract_text_from_image(image_bytes)
+    with st.spinner("📐 Scanning dokumen..."):
+        clean_bytes = scan_and_extract(image_bytes)
+
+    with st.spinner("🧾 Proses OCR via Mistral AI..."):
+        full_text = extract_text_from_image(clean_bytes)
 
     # Pastikan full_text bukan string error dari fungsi extract_text_from_image
     if full_text.startswith("Error:"):
@@ -787,9 +861,9 @@ if uploaded_file:
         edited_items = st.session_state.manual_items
 
         # ------------------- SUBMIT SECTION -------------------
-
+        
         if st.button("📤 Submit to Google Sheets"):
-            with st.spinner("Mengirim data dan gambar... Mohon tunggu 🙏"):
+            #with st.spinner("Mengirim data dan gambar... Mohon tunggu 🙏"):
                 try:
                     image_url = upload_image_to_drive(image_bytes, filename=uploaded_file.name, folder_id=folder_id)
                     success = send_to_sheets(sheet_id, store_name, date, tax, total, edited_items, image_url)
