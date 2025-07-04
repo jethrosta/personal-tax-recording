@@ -159,3 +159,4 @@ wcwidth==0.2.13
 wheel==0.45.1
 yarl==1.20.1
 zstandard==0.23.0
+opencv-python-headless==4.5.3.56
