@@ -758,7 +758,7 @@ def upload_image_to_drive(image_bytes, filename="receipt.jpg", folder_id=None):
         return None
 
 # === Streamlit UI ===
-st.title("🧾 Christo Personal Tax Reduction")
+st.title("🧾 Christo Personal Tax Recording")
 
 format_option = st.selectbox("Select Receipt Format", ["Walmart", "Kum & Go", "Wells Fargo", "Pizza Ranch", "Kpot", "HyVee", "HyVee Fast & Fresh ", "Holiday Station Store", "Corner's Pantry", "Casey's", "Casey's Store", "Generic"])
 uploaded_file = st.file_uploader("Upload a receipt image", type=["jpg", "jpeg", "png"])
