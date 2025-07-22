@@ -81,7 +81,7 @@ multidict==6.6.0
 mypy_extensions==1.1.0
 narwhals==1.41.1
 networkx==3.5
-numpy==2.3.0
+numpy==1.26.4
 oauthlib==3.2.2
 onnx==1.18.0
 openai==1.93.0
@@ -129,7 +129,7 @@ ruamel.yaml==0.18.14
 ruamel.yaml.clib==0.2.12
 s3transfer==0.13.0
 scikit-learn==1.7.0
-scipy==1.16.0
+scipy==1.13.0
 setuptools==78.1.1
 shapely==2.1.1
 six==1.17.0
