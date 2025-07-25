@@ -157,7 +157,6 @@ numpy==2.2.4
 oauthlib==3.2.2
 openai==1.93.0
 opencv-contrib-python==4.10.0.84
-opencv-python==4.11.0.86
 opencv-python-headless==4.11.0.86
 openpyxl==3.1.5
 opentelemetry-api==1.33.1
@@ -291,3 +290,6 @@ wsproto==1.2.0
 yarl==1.20.1
 zipp==3.21.0
 zstandard==0.23.0
+freeglut3-dev
+libgtk2.0-dev
+libgl1-mesa-glx
