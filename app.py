@@ -750,7 +750,7 @@ def upload_image_to_drive(image_bytes, filename="receipt.jpg", folder_id=None):
         # Set permission to public
         drive_service.permissions().create(
             fileId=file['id'],
-            body={'type': 'anyone', 'role': 'editor'},
+            body={'type': 'anyone', 'role': 'writer'},
             supportsAllDrives=True
         ).execute()
 
