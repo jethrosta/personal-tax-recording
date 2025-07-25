@@ -743,13 +743,15 @@ def upload_image_to_drive(image_bytes, filename="receipt.jpg", folder_id=None):
         file = drive_service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id'
+            fields='id',
+            supportsAllDrives=True
         ).execute()
 
         # Set permission to public
         drive_service.permissions().create(
             fileId=file['id'],
-            body={'type': 'anyone', 'role': 'reader'}
+            body={'type': 'anyone', 'role': 'editor'},
+            supportsAllDrives=True
         ).execute()
 
         return f"https://drive.google.com/uc?id={file['id']}"
