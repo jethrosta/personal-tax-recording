@@ -85,8 +85,7 @@ numpy==2.3.0
 oauthlib==3.2.2
 onnx==1.18.0
 openai==1.93.0
-opencv-contrib-python==4.10.0.84
-opencv-python==4.11.0.86
+opencv-python-headless==4.11.0.86
 openpyxl==3.1.5
 opt-einsum==3.3.0
 orjson==3.10.18
